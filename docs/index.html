@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eSports API Documentation - Meta 3.2</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --method-get: #10b981;
+      --method-post: #3b82f6;
+      --method-put: #f59e0b;
+      --method-delete: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 0;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      padding: 3rem 2rem;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 800px;
+      margin: 0 auto 1.5rem;
+    }
+
+    .badges {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--primary);
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+
+    .search-bar {
+      margin-bottom: 2rem;
+      display: flex;
+      gap: 1rem;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 0.9rem 1.2rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+
+    .tag-section {
+      margin-bottom: 2.5rem;
+    }
+
+    .tag-title {
+      font-size: 1.5rem;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .endpoint-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .endpoint-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .endpoint-header {
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .method {
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      min-width: 75px;
+      text-align: center;
+    }
+
+    .method.get { background: rgba(16, 185, 129, 0.2); color: var(--method-get); }
+    .method.post { background: rgba(59, 130, 246, 0.2); color: var(--method-post); }
+    .method.put { background: rgba(245, 158, 11, 0.2); color: var(--method-put); }
+    .method.delete { background: rgba(239, 68, 68, 0.2); color: var(--method-delete); }
+
+    .path {
+      font-family: monospace;
+      font-size: 1.05rem;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .summary {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-left: auto;
+    }
+
+    .endpoint-body {
+      padding: 1.25rem;
+      border-top: 1px solid var(--border);
+      background: #141f32;
+      display: none;
+    }
+
+    .endpoint-body.active {
+      display: block;
+    }
+
+    .desc {
+      margin-bottom: 1rem;
+      color: var(--text-muted);
+    }
+
+    pre {
+      background: #0b1120;
+      padding: 1rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 0.9rem;
+      color: #38bdf8;
+      border: 1px solid #1e293b;
+    }
+
+    .btn-swagger {
+      display: inline-block;
+      margin-top: 1rem;
+      background: var(--primary);
+      color: #0f172a;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .btn-swagger:hover {
+      background: var(--primary-hover);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎮 API REST: Jugadores y Rosters de eSports</h1>
+    <p>Documentación interactiva y especificación OpenAPI 3.0 para la gestión de equipos y alineaciones de League of Legends (Meta 3.2).</p>
+    <div class="badges">
+      <span class="badge">OpenAPI 3.0.3</span>
+      <span class="badge">Node.js + Express</span>
+      <span class="badge">Sequelize ORM</span>
+      <span class="badge">MySQL 8.0</span>
+      <span class="badge">18 Endpoints</span>
+    </div>
+    <div style="margin-top: 1.5rem;">
+      <a href="http://localhost:3000/api/v1/docs" target="_blank" class="btn-swagger">Abrir Swagger UI Interactivo</a>
+      <a href="./openapi.json" target="_blank" class="btn-swagger" style="background: #334155; color: #fff; margin-left: 0.5rem;">Descargar OpenAPI (JSON)</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="search-bar">
+      <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar endpoint por ruta o descripción (ej: /jugadores, titulares, rol)...">
+    </div>
+
+    <!-- Módulo Jugadores -->
+    <section class="tag-section">
+      <h2 class="tag-title">⚔️ Módulo: Jugadores (/api/v1/jugadores)</h2>
+      
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method get">GET</span>
+          <span class="path">/api/v1/jugadores</span>
+          <span class="summary">RF-02 / RF-06: Listar jugadores (filtros: rol, estado, search)</span>
+        </div>
+        <div class="endpoint-body">
+          <p class="desc">Retorna la lista de todos los jugadores registrados. Soporta filtros opcionales en query params.</p>
+          <strong>Query Params:</strong>
+          <pre>?rol=Mid&estado=activo&search=faker</pre>
+          <strong style="margin-top: 0.5rem; display:block;">Respuesta 200 OK:</strong>
+          <pre>[
+  {
+    "id": 1,
+    "nickname": "Faker",
+    "nombre_real": "Lee Sang-hyeok",
+    "pais": "Corea del Sur",
+    "rol": "Mid",
+    "estado": "activo"
+  }
+]</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method get">GET</span>
+          <span class="path">/api/v1/jugadores/{id}</span>
+          <span class="summary">RF-03: Ver detalle de jugador</span>
+        </div>
+        <div class="endpoint-body">
+          <p class="desc">Obtiene la información completa del jugador por ID.</p>
+          <strong>Respuesta 200 OK:</strong>
+          <pre>{
+  "id": 1,
+  "nickname": "Faker",
+  "nombre_real": "Lee Sang-hyeok",
+  "pais": "Corea del Sur",
+  "rol": "Mid",
+  "estado": "activo",
+  "createdAt": "2026-10-13T00:00:00.000Z",
+  "updatedAt": "2026-10-13T00:00:00.000Z"
+}</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method post">POST</span>
+          <span class="path">/api/v1/jugadores</span>
+          <span class="summary">RF-01: Crear jugador (RN-01: Nickname único)</span>
+        </div>
+        <div class="endpoint-body">
+          <p class="desc">Registra un nuevo jugador. Requiere rol de Admin (o cabecera x-role: Admin).</p>
+          <strong>Cuerpo de Petición (JSON):</strong>
+          <pre>{
+  "nickname": "ShowMaker",
+  "nombre_real": "Heo Su",
+  "pais": "Corea del Sur",
+  "rol": "Mid",
+  "estado": "activo"
+}</pre>
+          <strong style="margin-top: 0.5rem; display:block;">Respuestas:</strong>
+          <pre>201 Created: Jugador creado exitosamente
+400 Bad Request: Rol o estado inválido
+409 Conflict: Nickname duplicado (RN-01)</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method put">PUT</span>
+          <span class="path">/api/v1/jugadores/{id}</span>
+          <span class="summary">RF-04: Modificar datos de jugador</span>
+        </div>
+        <div class="endpoint-body">
+          <p class="desc">Actualiza campos del jugador por ID.</p>
+          <pre>200 OK | 400 Bad Request | 404 Not Found | 409 Conflict (si nickname repetido)</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method delete">DELETE</span>
+          <span class="path">/api/v1/jugadores/{id}</span>
+          <span class="summary">RF-05: Eliminar jugador</span>
+        </div>
+        <div class="endpoint-body">
+          <p class="desc">Elimina el jugador. Sus asignaciones en rosters son removidas automáticamente.</p>
+          <pre>204 No Content | 404 Not Found</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Módulo Rosters -->
+    <section class="tag-section">
+      <h2 class="tag-title">🛡️ Módulo: Rosters (/api/v1/rosters)</h2>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method get">GET</span>
+          <span class="path">/api/v1/rosters</span>
+          <span class="summary">RF-08: Listar todos los rosters</span>
+        </div>
+        <div class="endpoint-body">
+          <p class="desc">Lista rosters con recuento de jugadores asociados. Filtros opcionales: tipo, temporada.</p>
+          <strong>Query Params:</strong>
+          <pre>?tipo=Principal&temporada=2026</pre>
+          <strong style="margin-top: 0.5rem; display:block;">Respuesta 200 OK:</strong>
+          <pre>[
+  {
+    "id": 1,
+    "nombre": "T1 Principal",
+    "juego": "League of Legends",
+    "tipo": "Principal",
+    "temporada": "2026",
+    "cantidad_jugadores": 5
+  }
+]</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method get">GET</span>
+          <span class="path">/api/v1/rosters/{id}</span>
+          <span class="summary">RF-09: Detalle de roster con alineación</span>
+        </div>
+        <div class="endpoint-body">
+          <p class="desc">Muestra los datos del roster y sus jugadores asignados con su rol en el roster.</p>
+          <strong>Respuesta 200 OK:</strong>
+          <pre>{
+  "id": 1,
+  "nombre": "T1 Principal",
+  "juego": "League of Legends",
+  "tipo": "Principal",
+  "temporada": "2026",
+  "jugadores": [
+    { "id": 1, "nickname": "Faker", "rol": "Mid", "rol_en_roster": "Titular" },
+    { "id": 2, "nickname": "Zeus", "rol": "Top", "rol_en_roster": "Titular" }
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method post">POST</span>
+          <span class="path">/api/v1/rosters</span>
+          <span class="summary">RF-07: Crear roster</span>
+        </div>
+        <div class="endpoint-body">
+          <p class="desc">Crea un nuevo roster. Campos requeridos: nombre, temporada.</p>
+          <pre>{
+  "nombre": "FlyQuest Principal",
+  "juego": "League of Legends",
+  "tipo": "Principal",
+  "temporada": "2026"
+}</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method put">PUT</span>
+          <span class="path">/api/v1/rosters/{id}</span>
+          <span class="summary">RF-10: Actualizar roster</span>
+        </div>
+        <div class="endpoint-body">
+          <pre>200 OK | 400 Bad Request | 404 Not Found</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method delete">DELETE</span>
+          <span class="path">/api/v1/rosters/{id}</span>
+          <span class="summary">RF-11 / RN-05: Eliminar roster (jugadores permanecen)</span>
+        </div>
+        <div class="endpoint-body">
+          <pre>204 No Content | 404 Not Found</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Módulo Asignación -->
+    <section class="tag-section">
+      <h2 class="tag-title">🔄 Módulo: Asignación de Jugadores a Rosters</h2>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method get">GET</span>
+          <span class="path">/api/v1/rosters/{id}/jugadores</span>
+          <span class="summary">Listar jugadores de un roster</span>
+        </div>
+        <div class="endpoint-body">
+          <pre>200 OK: Lista de jugadores con su rol_en_roster (Titular/Suplente)</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method post">POST</span>
+          <span class="path">/api/v1/rosters/{id}/jugadores</span>
+          <span class="summary">RF-12 / RN-02 / RN-03: Asignar jugador a roster</span>
+        </div>
+        <div class="endpoint-body">
+          <p class="desc">Asigna un jugador como Titular o Suplente verificando que no exceda 5 titulares y no duplique rol entre titulares.</p>
+          <pre>{
+  "id_jugador": 1,
+  "rol_en_roster": "Titular"
+}</pre>
+          <strong style="margin-top: 0.5rem; display:block;">Reglas aplicadas:</strong>
+          <pre>409 Conflict: Si ya hay 5 titulares (RN-02)
+409 Conflict: Si ya hay un titular con el mismo rol (RN-03)
+409 Conflict: Si el jugador ya está en este roster</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method put">PUT</span>
+          <span class="path">/api/v1/rosters/{id}/jugadores/{id_jugador}</span>
+          <span class="summary">Cambiar rol en roster (Titular / Suplente)</span>
+        </div>
+        <div class="endpoint-body">
+          <pre>{ "rol_en_roster": "Suplente" }</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method delete">DELETE</span>
+          <span class="path">/api/v1/rosters/{id}/jugadores/{id_jugador}</span>
+          <span class="summary">RF-13: Quitar jugador del roster</span>
+        </div>
+        <div class="endpoint-body">
+          <pre>204 No Content: Asignación removida exitosamente</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Módulo Auxiliares -->
+    <section class="tag-section">
+      <h2 class="tag-title">⚙️ Módulo: Auxiliares & Salud</h2>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method get">GET</span>
+          <span class="path">/api/v1/roles</span>
+          <span class="summary">Listar roles válidos</span>
+        </div>
+        <div class="endpoint-body">
+          <pre>["Top", "Jungle", "Mid", "ADC", "Support"]</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method get">GET</span>
+          <span class="path">/api/v1/estados</span>
+          <span class="summary">Listar estados válidos</span>
+        </div>
+        <div class="endpoint-body">
+          <pre>["activo", "inactivo"]</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method get">GET</span>
+          <span class="path">/api/v1/tipos-roster</span>
+          <span class="summary">Listar tipos de roster</span>
+        </div>
+        <div class="endpoint-body">
+          <pre>["Principal", "Academy"]</pre>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header" onclick="toggleDetails(this)">
+          <span class="method get">GET</span>
+          <span class="path">/api/v1/health</span>
+          <span class="summary">RNF-03: Health check y estado de base de datos</span>
+        </div>
+        <div class="endpoint-body">
+          <pre>{
+  "status": "ok",
+  "service": "esports-rosters-api",
+  "uptime_seconds": 45.2,
+  "timestamp": "2026-10-13T00:00:00.000Z",
+  "database": "connected",
+  "dialect": "mysql"
+}</pre>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    function toggleDetails(element) {
+      const body = element.nextElementSibling;
+      body.classList.toggle('active');
+    }
+
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', function(e) {
+      const term = e.target.value.toLowerCase();
+      const cards = document.querySelectorAll('.endpoint-card');
+      cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (text.includes(term)) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

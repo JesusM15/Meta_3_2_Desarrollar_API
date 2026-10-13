@@ -1,0 +1,199 @@
+### Variables de entorno
+@baseUrl = http://localhost:3000/api/v1
+
+###############################################################################
+# 1. ENDPOINTS AUXILIARES Y SALUD
+###############################################################################
+
+### Health check del sistema y conexión a MySQL
+GET {{baseUrl}}/health
+
+### Listar roles válidos
+GET {{baseUrl}}/roles
+
+### Listar estados válidos
+GET {{baseUrl}}/estados
+
+### Listar tipos de roster válidos
+GET {{baseUrl}}/tipos-roster
+
+
+###############################################################################
+# 2. MÓDULO: JUGADORES
+###############################################################################
+
+### RF-02: Listar todos los jugadores
+GET {{baseUrl}}/jugadores
+
+### RF-06: Filtrar jugadores por rol
+GET {{baseUrl}}/jugadores?rol=Mid
+
+### RF-06: Filtrar jugadores por estado
+GET {{baseUrl}}/jugadores?estado=activo
+
+### RF-06: Buscar por nickname
+GET {{baseUrl}}/jugadores?search=Faker
+
+### RF-03: Ver detalle de jugador por ID (Faker)
+GET {{baseUrl}}/jugadores/1
+
+### RF-01: Crear jugador válido
+POST {{baseUrl}}/jugadores
+Content-Type: application/json
+x-role: Admin
+
+{
+  "nickname": "ShowMaker",
+  "nombre_real": "Heo Su",
+  "pais": "Corea del Sur",
+  "rol": "Mid",
+  "estado": "activo"
+}
+
+### RN-01: Validar nickname duplicado (Debe responder 409 Conflict)
+POST {{baseUrl}}/jugadores
+Content-Type: application/json
+x-role: Admin
+
+{
+  "nickname": "Faker",
+  "nombre_real": "Lee Sang-hyeok Duplicado",
+  "pais": "Corea del Sur",
+  "rol": "Mid",
+  "estado": "activo"
+}
+
+### Validar rol inválido (Debe responder 400 Bad Request)
+POST {{baseUrl}}/jugadores
+Content-Type: application/json
+x-role: Admin
+
+{
+  "nickname": "Tester",
+  "rol": "InvalidoRole"
+}
+
+### RF-04: Editar jugador existente
+PUT {{baseUrl}}/jugadores/1
+Content-Type: application/json
+x-role: Admin
+
+{
+  "nickname": "Faker",
+  "nombre_real": "Lee Sang-hyeok 'El Rey Inmortal'",
+  "pais": "Corea del Sur",
+  "rol": "Mid",
+  "estado": "activo"
+}
+
+### RF-05: Eliminar jugador por ID
+DELETE {{baseUrl}}/jugadores/8
+x-role: Admin
+
+
+###############################################################################
+# 3. MÓDULO: ROSTERS
+###############################################################################
+
+### RF-08: Listar todos los rosters (con cantidad de jugadores)
+GET {{baseUrl}}/rosters
+
+### RF-08: Filtrar rosters por tipo y temporada
+GET {{baseUrl}}/rosters?tipo=Principal&temporada=2026
+
+### RF-09: Ver detalle de roster con lista de jugadores (T1 Principal)
+GET {{baseUrl}}/rosters/1
+
+### RF-07: Crear nuevo roster
+POST {{baseUrl}}/rosters
+Content-Type: application/json
+x-role: Admin
+
+{
+  "nombre": "Cloud9 Principal",
+  "juego": "League of Legends",
+  "tipo": "Principal",
+  "temporada": "2026"
+}
+
+### RF-10: Actualizar datos de roster
+PUT {{baseUrl}}/rosters/1
+Content-Type: application/json
+x-role: Admin
+
+{
+  "nombre": "T1 World Champions",
+  "tipo": "Principal",
+  "temporada": "2026"
+}
+
+### RF-11 / RN-05: Eliminar roster (Los jugadores NO se eliminan)
+DELETE {{baseUrl}}/rosters/3
+x-role: Admin
+
+
+###############################################################################
+# 4. MÓDULO: ASIGNACIÓN DE JUGADORES A ROSTERS
+###############################################################################
+
+### Listar jugadores asignados a un roster (G2 Academy)
+GET {{baseUrl}}/rosters/2/jugadores
+
+### RF-12: Asignar jugador a roster (Suplente)
+POST {{baseUrl}}/rosters/2/jugadores
+Content-Type: application/json
+x-role: Admin
+
+{
+  "id_jugador": 1,
+  "rol_en_roster": "Suplente"
+}
+
+### RN-02: Intentar agregar un 6.º Titular a T1 Principal (Debe responder 409 Conflict)
+POST {{baseUrl}}/rosters/1/jugadores
+Content-Type: application/json
+x-role: Admin
+
+{
+  "id_jugador": 6,
+  "rol_en_roster": "Titular"
+}
+
+### RN-03: Intentar agregar 2.º Titular con mismo rol (Mid) en G2 Academy (Debe responder 409 Conflict)
+# Caps ya es Mid Titular en G2. Intentamos poner a Faker como Mid Titular en G2:
+POST {{baseUrl}}/rosters/2/jugadores
+Content-Type: application/json
+x-role: Admin
+
+{
+  "id_jugador": 1,
+  "rol_en_roster": "Titular"
+}
+
+### Cambiar rol en roster de un jugador (de Titular a Suplente)
+PUT {{baseUrl}}/rosters/2/jugadores/6
+Content-Type: application/json
+x-role: Admin
+
+{
+  "rol_en_roster": "Suplente"
+}
+
+### RF-13: Quitar jugador del roster
+DELETE {{baseUrl}}/rosters/2/jugadores/6
+x-role: Admin
+
+
+###############################################################################
+# 5. VALIDACIÓN DE ROLES Y PERMISOS (Admin vs Público)
+###############################################################################
+
+### Público intentando crear un jugador (Debe responder 403 Forbidden)
+POST {{baseUrl}}/jugadores
+Content-Type: application/json
+x-role: Publico
+
+{
+  "nickname": "Hacker",
+  "rol": "Mid"
+}

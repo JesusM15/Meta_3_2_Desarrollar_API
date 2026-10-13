@@ -1,0 +1,381 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API REST: Perfiles de Jugadores y Rosters de eSports",
+    "description": "API RESTful para la gestión integral de jugadores profesionales y configuración de rosters para organizaciones de eSports. Desarrollado con Node.js, Express, Sequelize y MySQL para la Meta 3.2.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "JesusM15",
+      "url": "https://github.com/JesusM15/Meta_3_2_Desarrollar_API"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api/v1",
+      "description": "Servidor Local de Desarrollo"
+    }
+  ],
+  "tags": [
+    { "name": "Jugadores", "description": "Gestión de perfiles de jugadores profesionales" },
+    { "name": "Rosters", "description": "Gestión de equipos y alineaciones por temporada" },
+    { "name": "Asignación", "description": "Asignación y gestión de roles dentro de cada roster" },
+    { "name": "Auxiliares", "description": "Valores permitidos y estado del sistema" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "RoleAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-role",
+        "description": "Rol de acceso: 'Admin' (crear, editar, eliminar) o 'Publico' (solo lectura)."
+      }
+    },
+    "schemas": {
+      "Jugador": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "nickname": { "type": "string", "example": "Faker" },
+          "nombre_real": { "type": "string", "example": "Lee Sang-hyeok" },
+          "pais": { "type": "string", "example": "Corea del Sur" },
+          "rol": { "type": "string", "enum": ["Top", "Jungle", "Mid", "ADC", "Support"], "example": "Mid" },
+          "estado": { "type": "string", "enum": ["activo", "inactivo"], "example": "activo" }
+        }
+      },
+      "JugadorCreateInput": {
+        "type": "object",
+        "required": ["nickname", "rol"],
+        "properties": {
+          "nickname": { "type": "string", "example": "Faker" },
+          "nombre_real": { "type": "string", "example": "Lee Sang-hyeok" },
+          "pais": { "type": "string", "example": "Corea del Sur" },
+          "rol": { "type": "string", "enum": ["Top", "Jungle", "Mid", "ADC", "Support"], "example": "Mid" },
+          "estado": { "type": "string", "enum": ["activo", "inactivo"], "default": "activo", "example": "activo" }
+        }
+      },
+      "RosterListItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "nombre": { "type": "string", "example": "TL Principal" },
+          "juego": { "type": "string", "example": "League of Legends" },
+          "tipo": { "type": "string", "enum": ["Principal", "Academy"], "example": "Principal" },
+          "temporada": { "type": "string", "example": "2025" },
+          "cantidad_jugadores": { "type": "integer", "example": 5 }
+        }
+      },
+      "RosterDetail": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "nombre": { "type": "string", "example": "TL Principal" },
+          "juego": { "type": "string", "example": "League of Legends" },
+          "tipo": { "type": "string", "example": "Principal" },
+          "temporada": { "type": "string", "example": "2025" },
+          "jugadores": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "integer", "example": 1 },
+                "nickname": { "type": "string", "example": "Faker" },
+                "rol": { "type": "string", "example": "Mid" },
+                "rol_en_roster": { "type": "string", "enum": ["Titular", "Suplente"], "example": "Titular" }
+              }
+            }
+          }
+        }
+      },
+      "RosterCreateInput": {
+        "type": "object",
+        "required": ["nombre", "temporada"],
+        "properties": {
+          "nombre": { "type": "string", "example": "TL Principal" },
+          "juego": { "type": "string", "default": "League of Legends", "example": "League of Legends" },
+          "tipo": { "type": "string", "enum": ["Principal", "Academy"], "default": "Principal", "example": "Principal" },
+          "temporada": { "type": "string", "example": "2025" }
+        }
+      },
+      "AsignacionInput": {
+        "type": "object",
+        "required": ["id_jugador", "rol_en_roster"],
+        "properties": {
+          "id_jugador": { "type": "integer", "example": 1 },
+          "rol_en_roster": { "type": "string", "enum": ["Titular", "Suplente"], "example": "Titular" }
+        }
+      },
+      "AsignacionUpdateInput": {
+        "type": "object",
+        "required": ["rol_en_roster"],
+        "properties": {
+          "rol_en_roster": { "type": "string", "enum": ["Titular", "Suplente"], "example": "Suplente" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string", "example": "Descripción del error" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/jugadores": {
+      "get": {
+        "tags": ["Jugadores"],
+        "summary": "RF-02 / RF-06: Listar y filtrar jugadores",
+        "parameters": [
+          { "name": "rol", "in": "query", "schema": { "type": "string", "enum": ["Top", "Jungle", "Mid", "ADC", "Support"] }, "description": "Filtrar por rol de juego" },
+          { "name": "estado", "in": "query", "schema": { "type": "string", "enum": ["activo", "inactivo"] }, "description": "Filtrar por estado" },
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Búsqueda por nickname parcial" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de jugadores",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Jugador" } } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Jugadores"],
+        "summary": "RF-01: Crear jugador",
+        "security": [{ "RoleAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JugadorCreateInput" } } }
+        },
+        "responses": {
+          "201": { "description": "Jugador creado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Jugador" } } } },
+          "400": { "description": "Datos inválidos", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "description": "Nickname duplicado (RN-01)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/jugadores/{id}": {
+      "get": {
+        "tags": ["Jugadores"],
+        "summary": "RF-03: Ver detalle de jugador",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Detalle del jugador", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Jugador" } } } },
+          "404": { "description": "Jugador no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "put": {
+        "tags": ["Jugadores"],
+        "summary": "RF-04: Editar jugador",
+        "security": [{ "RoleAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JugadorCreateInput" } } }
+        },
+        "responses": {
+          "200": { "description": "Jugador actualizado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Jugador" } } } },
+          "400": { "description": "Datos inválidos", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Jugador no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "description": "Nickname duplicado (RN-01)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Jugadores"],
+        "summary": "RF-05: Eliminar jugador",
+        "security": [{ "RoleAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "204": { "description": "Jugador eliminado exitosamente" },
+          "404": { "description": "Jugador no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/rosters": {
+      "get": {
+        "tags": ["Rosters"],
+        "summary": "RF-08: Listar todos los rosters",
+        "parameters": [
+          { "name": "tipo", "in": "query", "schema": { "type": "string", "enum": ["Principal", "Academy"] }, "description": "Filtrar por tipo" },
+          { "name": "temporada", "in": "query", "schema": { "type": "string" }, "description": "Filtrar por temporada (ej. 2025)" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de rosters con cantidad de jugadores",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/RosterListItem" } } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Rosters"],
+        "summary": "RF-07: Crear un roster",
+        "security": [{ "RoleAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RosterCreateInput" } } }
+        },
+        "responses": {
+          "201": { "description": "Roster creado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RosterListItem" } } } },
+          "400": { "description": "Datos inválidos", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/rosters/{id}": {
+      "get": {
+        "tags": ["Rosters"],
+        "summary": "RF-09: Ver detalle de un roster",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Detalle del roster con jugadores asignados", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RosterDetail" } } } },
+          "404": { "description": "Roster no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "put": {
+        "tags": ["Rosters"],
+        "summary": "RF-10: Actualizar un roster",
+        "security": [{ "RoleAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RosterCreateInput" } } }
+        },
+        "responses": {
+          "200": { "description": "Roster actualizado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RosterListItem" } } } },
+          "400": { "description": "Datos inválidos", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Roster no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Rosters"],
+        "summary": "RF-11: Eliminar un roster (no elimina los jugadores - RN-05)",
+        "security": [{ "RoleAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "204": { "description": "Roster eliminado exitosamente" },
+          "404": { "description": "Roster no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/rosters/{id}/jugadores": {
+      "get": {
+        "tags": ["Asignación"],
+        "summary": "Listar jugadores asignados a un roster",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Lista de jugadores asignados al roster" },
+          "404": { "description": "Roster no encontrado" }
+        }
+      },
+      "post": {
+        "tags": ["Asignación"],
+        "summary": "RF-12: Asignar jugador a un roster",
+        "security": [{ "RoleAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AsignacionInput" } } }
+        },
+        "responses": {
+          "201": { "description": "Jugador asignado al roster exitosamente" },
+          "400": { "description": "Datos inválidos o rol de roster inválido", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Roster o Jugador no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "description": "Conflicto: Jugador ya asignado, o superado límite de 5 titulares (RN-02), o rol repetido entre titulares (RN-03)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/rosters/{id}/jugadores/{id_jugador}": {
+      "put": {
+        "tags": ["Asignación"],
+        "summary": "Modificar rol en roster de un jugador (Titular / Suplente)",
+        "security": [{ "RoleAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "id_jugador", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AsignacionUpdateInput" } } }
+        },
+        "responses": {
+          "200": { "description": "Rol en roster actualizado exitosamente" },
+          "400": { "description": "Datos inválidos", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Roster o asignación no encontrada", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "description": "Conflicto: Límite de 5 titulares (RN-02) o rol duplicado entre titulares (RN-03)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Asignación"],
+        "summary": "RF-13: Quitar jugador del roster",
+        "security": [{ "RoleAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "id_jugador", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Jugador removido del roster exitosamente" },
+          "404": { "description": "Roster o asignación no encontrada", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/roles": {
+      "get": {
+        "tags": ["Auxiliares"],
+        "summary": "Listar roles válidos de jugadores",
+        "responses": {
+          "200": {
+            "description": "Lista de roles válidos",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "type": "string" }, "example": ["Top", "Jungle", "Mid", "ADC", "Support"] } } }
+          }
+        }
+      }
+    },
+    "/estados": {
+      "get": {
+        "tags": ["Auxiliares"],
+        "summary": "Listar estados válidos de jugadores",
+        "responses": {
+          "200": {
+            "description": "Lista de estados válidos",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "type": "string" }, "example": ["activo", "inactivo"] } } }
+          }
+        }
+      }
+    },
+    "/tipos-roster": {
+      "get": {
+        "tags": ["Auxiliares"],
+        "summary": "Listar tipos de roster válidos",
+        "responses": {
+          "200": {
+            "description": "Lista de tipos válidos",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "type": "string" }, "example": ["Principal", "Academy"] } } }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Auxiliares"],
+        "summary": "Verificar salud del servidor y estado de la base de datos",
+        "responses": {
+          "200": {
+            "description": "Estado del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" },
+                    "service": { "type": "string", "example": "esports-rosters-api" },
+                    "uptime_seconds": { "type": "number", "example": 12.3 },
+                    "timestamp": { "type": "string", "example": "2026-10-13T00:00:00.000Z" },
+                    "database": { "type": "string", "example": "connected" },
+                    "dialect": { "type": "string", "example": "mysql" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
