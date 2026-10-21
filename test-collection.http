@@ -2,6 +2,40 @@
 @baseUrl = http://localhost:3000/api/v1
 
 ###############################################################################
+# 0. AUTENTICACIÓN Y SEGURIDAD JWT + COOKIES + CSRF (Meta 3.4)
+###############################################################################
+
+### Iniciar sesión como Admin (Emite Cookie HTTP-Only jwt_token y Cookie csrf_token)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+x-api-key: esports_api_key_admin_2026
+
+{
+  "email": "admin@esports.com",
+  "password": "admin123"
+}
+
+### Extraer token CSRF devuelto en el login
+@csrfToken = {{login.response.body.csrfToken}}
+
+### Verificar estado de sesión activa
+GET {{baseUrl}}/auth/verify
+
+### Intento de mutación SIN token CSRF (Debe responder 403 Forbidden por CSRF Protection)
+POST {{baseUrl}}/jugadores
+Content-Type: application/json
+
+{
+  "nickname": "Intruso",
+  "rol": "Mid"
+}
+
+### Cerrar sesión (Revoca cookies jwt_token y csrf_token)
+POST {{baseUrl}}/auth/logout
+
+
+###############################################################################
 # 1. ENDPOINTS AUXILIARES Y SALUD
 ###############################################################################
 

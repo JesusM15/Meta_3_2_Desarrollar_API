@@ -1,38 +1,59 @@
-# Práctica de Laboratorio: REST API - Perfiles de Jugadores y Rosters de eSports
+# Práctica de Laboratorio: REST API & Frontend Admin - eSports Rosters (Meta 3.2 & Meta 3.4)
 
 **Asignatura:** Desarrollo de Aplicaciones Web  
-**Meta:** 3.2  
-**Tecnologías:** Node.js, Express.js (ES6 Modules), Sequelize ORM, MySQL 8.0, OpenAPI 3.0 / Swagger UI, Nodemon  
+**Metas:** 3.2 (Desarrollar API REST con Sequelize) y 3.4 (Frontend Admin + Autorización JWT, Cookies HTTP-Only y CSRF Protection)  
+**Tecnologías Backend:** Node.js, Express.js (ES6), Sequelize ORM, MySQL 8.0 / SQLite, JWT (`jsonwebtoken`), `cookie-parser`, OpenAPI 3.0 / Swagger UI  
+**Tecnologías Frontend:** Vue.js 3, Vite, Vanilla CSS con Diseño Hextech / Cyberpunk eSports  
 **Autor:** [JesusM15](https://github.com/JesusM15/Meta_3_2_Desarrollar_API)
 
 ---
 
 ## 📋 1. Objetivo del Proyecto
 
-Construir una **API RESTful** simple, robusta y demostrable para la gestión integral de jugadores profesionales y configuración de rosters (alineaciones) para equipos y organizaciones de **eSports** (League of Legends).
-
-La arquitectura implementa separación de responsabilidades en capas (**Rutas**, **Controladores**, **Servicios**, **Modelos** y **Migraciones**) cumpliendo estrictamente con las reglas de negocio del dominio y estándares OpenAPI 3.0.
+El proyecto proporciona una solución integral (Backend RESTful + Frontend SPA) para organizaciones y ligas de **eSports (League of Legends)**:
+1. **Backend RESTful:** Gestión en capas (Rutas, Controladores, Servicios, Modelos y Migraciones) para administrar jugadores, rosters y asignaciones cumpliendo con reglas de negocio estrictas.
+2. **Frontend para Rol Admin:** Interfaz web moderna, interactiva y desacoplada construida con Vue 3 y Vite, con tablero táctico de la Grieta del Invocador para los 5 roles (`Top`, `Jungle`, `Mid`, `ADC`, `Support`) y banca de suplentes.
+3. **Mecanismo de Autorización Robusto (Meta 3.4):** Autenticación de Administrador basada en **JWT almacenado en Cookie HTTP-Only** (anti-XSS) y prevención activa de **CSRF (Cross-Site Request Forgery)** mediante el patrón de doble token (`x-csrf-token`).
 
 ---
 
-## 🔐 2. Roles y Permisos
+## 🔐 2. Seguridad y Arquitectura de Autenticación (Meta 3.4)
 
-| Rol | Permisos | Implementación en la API |
-| :--- | :--- | :--- |
-| **Admin** | Crear, editar y eliminar jugadores y rosters | Permiso total sobre todos los métodos HTTP (`GET`, `POST`, `PUT`, `DELETE`). |
-| **Público** | Solo lectura | Puede consultar jugadores y rosters (`GET`). Intentar operaciones de mutación (`POST`, `PUT`, `DELETE`) retorna `403 Forbidden`. |
+El sistema implementa la arquitectura de seguridad requerida en la **Meta 3.4**:
 
-> **Nota:** Para probar la restricción de roles, envíe la cabecera `x-role: Publico` o `x-role: Admin`. Si se omite la cabecera, el entorno de desarrollo permite la ejecución normal.
+```text
+Cliente (Frontend Vue 3)                              Servidor (Express API)
+  │                                                        │
+  ├─────── 1. POST /api/v1/auth/login ────────────────────>│ (Valida x-api-key y credenciales)
+  │        Headers: x-api-key: [API_KEY]                   │ Genera Token CSRF y JWT
+  │        Body: { email, password }                       │
+  │<────── 2. Set-Cookie: jwt_token (HttpOnly) ────────────┤
+  │        Set-Cookie: csrf_token                          │
+  │        Body: { csrfToken, usuario }                    │
+  │                                                        │
+  │  (El cliente guarda csrfToken en memoria)              │
+  │                                                        │
+  ├─────── 3. Petición Mutación (POST / PUT / DELETE) ────>│ Middleware requireAdmin:
+  │        Cookie: jwt_token (Automática por navegador)    │ 1. Verifica firma del JWT
+  │        Header: x-csrf-token: [csrfToken]               │ 2. Compara CSRF header con JWT
+  │<────── 4. 200 OK / 201 Created / 204 No Content ───────┤ 3. Si CSRF falta o no coincide -> 403
+```
+
+### Características de Seguridad:
+- **Protección Anti-XSS:** El token JWT viaja en una cookie con bandera `HttpOnly=true`. JavaScript no puede leer este token vía `document.cookie`.
+- **Prevención Anti-CSRF:** Cada operación de modificación (`POST`, `PUT`, `DELETE`, `PATCH`) exige la cabecera `x-csrf-token`. Dado que un atacante externo no puede leer este token por la Política del Mismo Origen (SOP), cualquier intento de ataque CSRF es bloqueado con código `403 Forbidden`.
+- **API Key inicial:** El endpoint de login exige la cabecera `x-api-key`.
+- **Consola de Auditoría en Vivo:** El frontend incluye una pestaña dedicada a auditar y simular ataques CSRF en tiempo real para verificar la respuesta del servidor (`201` con token válido vs `403` sin token o adulterado).
 
 ---
 
 ## 📐 3. Reglas de Negocio Implementadas
 
-- **RN-01 (Nickname Único):** El nickname de un jugador debe ser único en todo el sistema (`409 Conflict` en `POST` o `PUT`).
-- **RN-02 (Máximo 5 Titulares):** Un roster puede tener como máximo 5 jugadores con rol de **Titular** (`409 Conflict` al intentar agregar un 6.º titular).
-- **RN-03 (Roles Únicos entre Titulares):** No puede haber dos titulares con la misma posición (`Top`, `Jungle`, `Mid`, `ADC`, `Support`) en un mismo roster (`409 Conflict`).
-- **RN-04 (Múltiples Rosters):** Un jugador puede formar parte de más de un roster (ej. como titular en uno y suplente en otro).
-- **RN-05 (Integridad de Jugadores al Borrar Roster):** Al eliminar un roster, sus jugadores **no** se eliminan de la base de datos (eliminación en cascada únicamente en la tabla intermedia de asignaciones).
+- **RN-01 (Nickname Único):** El apodo del jugador es único globalmente (`409 Conflict`).
+- **RN-02 (Máximo 5 Titulares):** Un roster no puede superar 5 titulares (`409 Conflict`).
+- **RN-03 (Roles Únicos):** No puede haber dos titulares con la misma posición en un roster (`409 Conflict`).
+- **RN-04 (Múltiples Rosters):** Un jugador puede ser titular o suplente en más de un roster.
+- **RN-05 (Integridad):** Eliminar un roster preserva intactos a los jugadores en la base de datos (eliminación en cascada únicamente sobre la tabla pivote).
 
 ---
 
@@ -54,7 +75,7 @@ Roster
 ├── tipo (VARCHAR: Principal | Academy)
 └── temporada (VARCHAR: ej. '2026')
 
-Roster_Jugador (Tabla Intermedia Many-to-Many)
+Roster_Jugador (Tabla Intermedia N:M)
 ├── id (PK, INT AUTO_INCREMENT)
 ├── id_roster (FK -> rosters.id, ON DELETE CASCADE)
 ├── id_jugador (FK -> jugadores.id, ON DELETE CASCADE)
@@ -63,11 +84,11 @@ Roster_Jugador (Tabla Intermedia Many-to-Many)
 
 ---
 
-## 🚀 5. Instrucciones de Instalación y Uso
+## 🚀 5. Instrucciones de Instalación y Ejecución
 
 ### Requisitos Previos
 - Node.js (v18.0 o superior)
-- MySQL Server (v8.0+) en ejecución (o SQLite para pruebas locales alternativas)
+- MySQL Server (v8.0+) o SQLite (soporte embebido)
 - Git
 
 ### 1. Clonar el Repositorio
@@ -76,9 +97,13 @@ git clone https://github.com/JesusM15/Meta_3_2_Desarrollar_API.git
 cd Meta_3_2_Desarrollar_API
 ```
 
-### 2. Instalar Dependencias
+### 2. Instalar Dependencias del Backend y Frontend
 ```bash
+# Dependencias del servidor:
 npm install
+
+# Dependencias del cliente Vue:
+npm run frontend:install
 ```
 
 ### 3. Configurar Variables de Entorno (`.env`)
@@ -87,151 +112,125 @@ Crear un archivo `.env` en la raíz (puede basarse en `.env.example`):
 PORT=3000
 NODE_ENV=development
 
-# Conexión MySQL
+# Base de Datos (MySQL)
 DB_DIALECT=mysql
 DB_HOST=localhost
 DB_PORT=3306
 DB_NAME=esports_db
 DB_USER=root
-DB_PASSWORD=tu_contrasena_aqui
+DB_PASSWORD=tu_contrasena
+
+# Configuración JWT y CSRF (Meta 3.4)
+JWT_SECRET=esports_jwt_secret_super_seguro_2026
+JWT_EXPIRES_IN=2h
+API_KEY=esports_api_key_admin_2026
+COOKIE_MAX_AGE=7200000
+CLIENT_URL=http://localhost:5173
+
+# Credenciales de Administrador por defecto
+ADMIN_EMAIL=admin@esports.com
+ADMIN_PASSWORD=admin123
 ```
 
-### 4. Ejecutar Migraciones y Datos Iniciales (Seeders)
+### 4. Reiniciar Base de Datos y Cargar Seeders
 ```bash
-# Crear base de datos, ejecutar migraciones e insertar datos demo de T1 y G2
 npm run db:reset
-
-# O individualmente:
-npm run db:migrate
-npm run db:seed
 ```
 
 ### 5. Iniciar la Aplicación
+
+#### A) Iniciar Servidor Backend (Puerto 3000):
 ```bash
-# Modo Desarrollo (con Nodemon y recarga automática):
 npm run dev
-
-# Modo Producción:
-npm start
+# o npm start
 ```
+El servidor backend iniciará en: `http://localhost:3000`
 
-El servidor iniciará en: `http://localhost:3000`
+#### B) Iniciar Frontend Admin en Vue 3 (Puerto 5173):
+En otra terminal dentro de la raíz:
+```bash
+npm run frontend:dev
+```
+Abre en tu navegador: 👉 **`http://localhost:5173`**
 
 ### 6. Ejecutar Batería de Pruebas Automatizadas
 ```bash
 npm test
 ```
-Ejecuta 26 pruebas automáticas validando los 18 endpoints, las 5 reglas de negocio, los códigos de error HTTP y el tiempo de respuesta (< 500 ms).
+Ejecuta **29 pruebas automatizadas integrales** que validan:
+- Endpoints auxiliares y de salud.
+- Autenticación con API Key, emisión de Cookies HTTP-Only y token CSRF.
+- Bloqueo de peticiones sin token (401) y sin CSRF (403).
+- Las 5 reglas de negocio de eSports (RN-01 a RN-05).
+- Tiempos de respuesta menores a 500 ms (RNF-03).
 
 ---
 
-## 📖 6. Documentación OpenAPI / Swagger
+## 🖥️ 6. Características del Frontend Admin
 
-La API cuenta con documentación interactiva bajo la especificación **OpenAPI 3.0.3**:
+El frontend desarrollado en `frontend/` cuenta con:
+1. **Pantalla de Inicio de Sesión:** Con validación de API Key, correo y contraseña de administrador, botón de carga rápida de credenciales demo e información de seguridad.
+2. **Tablero Táctico de League of Legends:** Representación visual de las 5 posiciones titulares (`Top`, `Jungle`, `Mid`, `ADC`, `Support`) con avatares, cambio de titular a suplente y advertencias visuales de reglas de negocio en vivo.
+3. **Banca de Suplentes:** Lista de jugadores en reserva con ascenso directo a titular.
+4. **Módulo de Jugadores:** Búsqueda en tiempo real por apodo, filtros combinables por rol y estado, y modales interactivos para registrar, editar y dar de baja.
+5. **Consola de Auditoría CSRF & JWT:** Panel interactivo para probar en vivo la respuesta del backend ante peticiones legítimas y ante simulaciones de ataque CSRF.
+
+---
+
+## 📖 7. Documentación OpenAPI / Swagger
 
 | Recurso | URL | Descripción |
 | :--- | :--- | :--- |
-| **Swagger UI Interactivo** | `http://localhost:3000/api/v1/docs` | Interfaz interactiva para probar endpoints directamente en el navegador |
-| **OpenAPI Specification (JSON)** | `http://localhost:3000/api/v1/openapi.json` | Archivo OpenAPI en formato JSON estandarizado |
-| **Sitio de Documentación Estático** | `http://localhost:3000/docs-site/index.html` o abrir `docs/index.html` | Documentación autocontenida con búsqueda y temas |
+| **Swagger UI Interactivo** | `http://localhost:3000/api/v1/docs` | Pruebas directas de endpoints en navegador |
+| **OpenAPI Specification (JSON)** | `http://localhost:3000/api/v1/openapi.json` | Especificación JSON estandarizada |
+| **Sitio de Documentación Estático** | `http://localhost:3000/docs-site/index.html` | Portal web de documentación |
 
 ---
 
-## 📡 7. Lista Completa de Endpoints (`/api/v1`)
-
-### 7.1. Módulo Jugadores
-| Método | Endpoint | Descripción | Query / Body | Respuestas |
-| :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/jugadores` | Listar jugadores con filtros | `?rol=Mid&estado=activo&search=faker` | `200 OK` |
-| `GET` | `/jugadores/:id` | Detalle completo de un jugador | N/A | `200 OK`, `404 Not Found` |
-| `POST` | `/jugadores` | Registrar nuevo jugador | `{ nickname, nombre_real, pais, rol, estado }` | `201 Created`, `400 Bad Request`, `409 Conflict` |
-| `PUT` | `/jugadores/:id` | Actualizar datos de jugador | Campos a modificar | `200 OK`, `400`, `404`, `409` |
-| `DELETE` | `/jugadores/:id` | Eliminar jugador | N/A | `204 No Content`, `404 Not Found` |
-
-### 7.2. Módulo Rosters
-| Método | Endpoint | Descripción | Query / Body | Respuestas |
-| :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/rosters` | Listar rosters con `cantidad_jugadores` | `?tipo=Principal&temporada=2026` | `200 OK` |
-| `GET` | `/rosters/:id` | Detalle de roster con lista de jugadores | N/A | `200 OK`, `404 Not Found` |
-| `POST` | `/rosters` | Crear nuevo roster | `{ nombre, juego, tipo, temporada }` | `201 Created`, `400 Bad Request` |
-| `PUT` | `/rosters/:id` | Actualizar roster | Campos a modificar | `200 OK`, `400`, `404` |
-| `DELETE` | `/rosters/:id` | Eliminar roster (preserva jugadores) | N/A | `204 No Content`, `404 Not Found` |
-
-### 7.3. Asignación de Jugadores a Rosters
-| Método | Endpoint | Descripción | Query / Body | Respuestas |
-| :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/rosters/:id/jugadores` | Listar jugadores asignados | N/A | `200 OK`, `404 Not Found` |
-| `POST` | `/rosters/:id/jugadores` | Asignar jugador a roster | `{ id_jugador, rol_en_roster: "Titular" \| "Suplente" }` | `201 Created`, `400`, `404`, `409` |
-| `PUT` | `/rosters/:id/jugadores/:id_jugador` | Modificar rol (Titular / Suplente) | `{ rol_en_roster }` | `200 OK`, `400`, `404`, `409` |
-| `DELETE` | `/rosters/:id/jugadores/:id_jugador` | Quitar jugador del roster | N/A | `204 No Content`, `404` |
-
-### 7.4. Endpoints Auxiliares
-| Método | Endpoint | Descripción | Respuesta Ejemplo |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/roles` | Roles válidos de jugadores | `["Top", "Jungle", "Mid", "ADC", "Support"]` |
-| `GET` | `/estados` | Estados válidos | `["activo", "inactivo"]` |
-| `GET` | `/tipos-roster` | Tipos válidos de roster | `["Principal", "Academy"]` |
-| `GET` | `/health` | Estado del servidor y MySQL | `{ status: "ok", database: "connected", dialect: "mysql" }` |
-
----
-
-## 🧪 8. Pruebas con Colección HTTP
-
-El repositorio incluye el archivo [`test-collection.http`](./test-collection.http) preparado para ejecutarse con **REST Client** (extensión de VS Code) o importarse en **Thunder Client** / **Postman**. Cubre todos los casos de éxito, validaciones y violaciones a las reglas de negocio.
-
----
-
-## 📁 9. Estructura del Proyecto
+## 📁 8. Estructura del Repositorio
 
 ```text
 meta_3_2/
-├── docs/
-│   ├── index.html                   # Documentación estática autocontenida
-│   └── openapi.json                 # Especificación OpenAPI 3.0 en formato JSON
-├── src/
+├── frontend/                        # APLICACIÓN FRONTEND VUE 3 + VITE (Meta 3.4)
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Navbar.vue           # Barra superior con estado de seguridad y usuario
+│   │   │   ├── LoginView.vue        # Pantalla de login Admin con CSRF info
+│   │   │   ├── DashboardView.vue    # Métricas y accesos rápidos
+│   │   │   ├── JugadoresView.vue    # CRUD completo y filtros de jugadores
+│   │   │   ├── RostersView.vue      # Tablero táctico LoL y gestión de alineaciones
+│   │   │   └── SeguridadView.vue    # Laboratorio interactivo de pruebas CSRF / JWT
+│   │   ├── services/
+│   │   │   └── api.js               # Cliente HTTP con credentials: 'include' y CSRF
+│   │   ├── App.vue                  # Orquestador principal y notificaciones toast
+│   │   ├── main.js                  # Entrada Vue 3
+│   │   └── style.css                # Sistema de diseño Cyberpunk / Hextech LoL
+│   ├── index.html                   # HTML base con fuentes Outfit y Rajdhani
+│   ├── package.json                 # Dependencias de Vue 3 y Vite
+│   └── vite.config.js               # Configuración de proxy a backend en :3000
+├── src/                             # SERVIDOR BACKEND REST API (Meta 3.2 & 3.4)
 │   ├── config/
-│   │   ├── database.js              # Instancia de Sequelize (MySQL con fallback a SQLite)
-│   │   └── sequelize-cli-config.cjs # Configuración para Sequelize CLI
+│   │   └── database.js              # Sequelize ORM (MySQL con fallback a SQLite)
+│   ├── controllers/
+│   │   ├── auth.controller.js       # Login, Logout y Verify con JWT y CSRF
+│   │   ├── jugadores.controller.js  # Controladores de jugadores
+│   │   ├── rosters.controller.js    # Controladores de rosters y asignaciones
+│   │   └── auxiliares.controller.js # Controladores de roles, estados y salud
 │   ├── database/
 │   │   ├── migrations/              # Migraciones de base de datos
-│   │   │   ├── 20261012000001-create-jugadores.cjs
-│   │   │   ├── 20261012000002-create-rosters.cjs
-│   │   │   └── 20261012000003-create-roster-jugador.cjs
 │   │   ├── seeders/                 # Datos iniciales (T1 y G2)
-│   │   │   └── 20261012000001-demo-data.cjs
-│   │   ├── migrate.js               # Ejecutor programático de migraciones
-│   │   ├── seed.js                  # Ejecutor programático de seeders
 │   │   ├── reset.js                 # Reseteo completo de base de datos
-│   │   └── test-api.js              # Suite completa de pruebas automatizadas
-│   ├── models/
-│   │   ├── index.js                 # Exportación centralizada y asociaciones N:M
-│   │   ├── jugador.model.js         # Modelo Jugador con validaciones
-│   │   ├── roster.model.js          # Modelo Roster
-│   │   └── rosterJugador.model.js   # Modelo intermedio de asignación
-│   ├── services/
-│   │   ├── jugadores.service.js     # Lógica de negocio de jugadores (RN-01)
-│   │   └── rosters.service.js       # Lógica de rosters y asignaciones (RN-02, RN-03, RN-05)
-│   ├── controllers/
-│   │   ├── jugadores.controller.js  # Controladores HTTP de jugadores
-│   │   ├── rosters.controller.js    # Controladores HTTP de rosters y asignación
-│   │   └── auxiliares.controller.js # Controladores de roles, estados y health
-│   ├── routes/
-│   │   ├── index.js                 # Enrutador maestro /api/v1
-│   │   ├── jugadores.routes.js      # Rutas de jugadores
-│   │   ├── rosters.routes.js        # Rutas de rosters y asignaciones
-│   │   └── auxiliares.routes.js     # Rutas auxiliares
+│   │   └── test-api.js              # Suite de 29 pruebas automatizadas
 │   ├── middlewares/
-│   │   ├── errorHandler.js          # Manejo centralizado de errores y 404
-│   │   └── roleAuth.js              # Validación de roles (Admin vs Público)
-│   ├── docs/
-│   │   ├── openapi.json             # Especificación OpenAPI fuente
-│   │   └── swagger.js               # Configuración de Swagger UI
-│   └── app.js                       # Configuración global de Express
+│   │   ├── auth.middleware.js       # Validación de API Key y tokens JWT + CSRF
+│   │   ├── roleAuth.js              # Verificación de permisos de Admin
+│   │   └── errorHandler.js          # Manejador centralizado de errores
+│   ├── models/                      # Modelos Sequelize y asociaciones N:M
+│   ├── routes/                      # Enrutadores modulares de la API
+│   └── app.js                       # Express con cookie-parser y CORS con credenciales
 ├── .env.example                     # Plantilla de variables de entorno
-├── .gitignore                       # Archivos excluidos de Git
-├── .sequelizerc                     # Configuración de rutas para sequelize-cli
-├── package.json                     # Scripts y dependencias
-├── server.js                        # Punto de arranque del servidor HTTP
-├── test-collection.http             # Colección de peticiones HTTP
-└── README.md                        # Documentación principal del proyecto
+├── test-collection.http             # Colección de peticiones HTTP con flujo de Auth
+├── package.json                     # Scripts y dependencias principales
+├── server.js                        # Punto de arranque del servidor backend
+└── README.md                        # Documentación completa del proyecto
 ```
