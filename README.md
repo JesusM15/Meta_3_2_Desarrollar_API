@@ -1,10 +1,21 @@
-# Práctica de Laboratorio: REST API & Frontend Admin - eSports Rosters (Meta 3.2 & Meta 3.4)
+# Práctica de Laboratorio: REST API & Frontend Admin - eSports Rosters (Meta 3.2, 3.4 & 4.1)
 
 **Asignatura:** Desarrollo de Aplicaciones Web  
-**Metas:** 3.2 (Desarrollar API REST con Sequelize) y 3.4 (Frontend Admin + Autorización JWT, Cookies HTTP-Only y CSRF Protection)  
-**Tecnologías Backend:** Node.js, Express.js (ES6), Sequelize ORM, MySQL 8.0 / SQLite, JWT (`jsonwebtoken`), `cookie-parser`, OpenAPI 3.0 / Swagger UI  
+**Metas:** 3.2 (API REST Sequelize), 3.4 (Frontend Admin + JWT/CSRF) y **4.1 (Autenticación Google OAuth 2.0 y Tabla de Usuarios)**  
+**Branch Activo:** `google-auth`  
+**Tecnologías Backend:** Node.js, Express.js (ES6), Google OAuth2 (`googleapis`), Sequelize ORM, MySQL 8.0 / SQLite, JWT (`jsonwebtoken`), `cookie-parser`, OpenAPI 3.0 / Swagger UI  
 **Tecnologías Frontend:** Vue.js 3, Vite, Vanilla CSS con Diseño Hextech / Cyberpunk eSports  
 **Autor:** [JesusM15](https://github.com/JesusM15/Meta_3_2_Desarrollar_API)
+
+---
+
+## 🚀 Meta 4.1: Autenticación con Google OAuth 2.0 y Tabla de Usuarios
+
+Esta entrega implementa en el backend:
+1. **Ruta `/auth/google/login`:** Inicia el flujo de autorización OAuth2 de Google solicitando scopes de perfil y email (`userinfo.profile`, `userinfo.email`), enviando un token `state` para protección CSRF.
+2. **Ruta `/auth/google/callback`:** Recibe el código de autorización devuelto por Google, intercambia el código por tokens y perfil con `googleapis`, registra o actualiza el usuario en la tabla `usuarios` de la base de datos, y emite cookies seguras (`jwt_token` HttpOnly y `csrf_token`).
+3. **Tabla `usuarios` en Base de Datos:** Gestionada con Sequelize (`Usuario` model y migración `20261102000001-create-usuarios.cjs`) con campos para `google_id`, `nombre`, `email`, `avatar`, `rol` ('Admin'), `ultimo_acceso` y marcas de tiempo.
+4. **Ruta `/auth/usuarios`:** Permite consultar todos los usuarios registrados en el backend.
 
 ---
 

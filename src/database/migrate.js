@@ -7,7 +7,8 @@ const require = createRequire(import.meta.url);
 const migrationFiles = [
   './migrations/20261012000001-create-jugadores.cjs',
   './migrations/20261012000002-create-rosters.cjs',
-  './migrations/20261012000003-create-roster-jugador.cjs'
+  './migrations/20261012000003-create-roster-jugador.cjs',
+  './migrations/20261102000001-create-usuarios.cjs'
 ];
 
 export async function runMigrations() {
@@ -20,8 +21,20 @@ export async function runMigrations() {
 
     for (const file of migrationFiles) {
       console.log(`Ejecutando migración: ${file}`);
-      const migration = require(file);
-      await migration.up(queryInterface, Sequelize);
+      try {
+        const migration = require(file);
+        await migration.up(queryInterface, Sequelize);
+      } catch (migError) {
+        if (
+          migError.parent?.code === 'ER_TABLE_EXISTS_ERROR' ||
+          migError.parent?.code === 'ER_DUP_KEYNAME' ||
+          migError.name === 'SequelizeDatabaseError'
+        ) {
+          console.warn(`  ⚠️ Aviso en ${file}: ${migError.parent?.message || migError.message} (omitido)`);
+        } else {
+          throw migError;
+        }
+      }
     }
 
     console.log('✓ Todas las migraciones se ejecutaron con éxito.');

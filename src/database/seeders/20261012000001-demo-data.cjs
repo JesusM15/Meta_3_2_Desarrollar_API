@@ -111,9 +111,22 @@ module.exports = {
       { id_roster: 2, id_jugador: 7, rol_en_roster: 'Titular', created_at: now, updated_at: now },
       { id_roster: 2, id_jugador: 8, rol_en_roster: 'Suplente', created_at: now, updated_at: now }
     ]);
+
+    // 4. Insertar Usuario administrador inicial
+    await queryInterface.bulkInsert('usuarios', [
+      {
+        nombre: 'Administrador eSports',
+        email: 'admin@esports.com',
+        rol: 'Admin',
+        ultimo_acceso: now,
+        created_at: now,
+        updated_at: now
+      }
+    ]);
   },
 
   async down(queryInterface) {
+    await queryInterface.bulkDelete('usuarios', null, {});
     await queryInterface.bulkDelete('roster_jugadores', null, {});
     await queryInterface.bulkDelete('rosters', null, {});
     await queryInterface.bulkDelete('jugadores', null, {});

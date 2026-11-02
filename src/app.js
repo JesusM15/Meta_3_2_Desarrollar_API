@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
+import authRoutes from './routes/auth.routes.js';
 import apiRouter from './routes/index.js';
 import { setupSwagger } from './docs/swagger.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
@@ -56,15 +57,18 @@ setupSwagger(app);
 // Ruta raíz con resumen y accesos directos
 app.get('/', (req, res) => {
   res.status(200).json({
-    nombre: 'API REST: Perfiles de Jugadores y Rosters (Meta 3.2)',
-    version: '1.0.0',
-    descripcion: 'API para gestión de jugadores y alineaciones de eSports en League of Legends',
+    nombre: 'API REST: Perfiles de Jugadores y Rosters con Google OAuth 2.0 (Meta 4.1)',
+    version: '1.1.0',
+    descripcion: 'API para gestión de jugadores, alineaciones y autenticación Google OAuth 2.0',
     documentacion: {
       swagger_ui: '/api/v1/docs',
       openapi_json: '/api/v1/openapi.json',
       doc_estatica: '/docs-site/index.html'
     },
     rutas_principales: {
+      google_login: '/auth/google/login',
+      google_callback: '/auth/google/callback',
+      usuarios_registrados: '/auth/usuarios',
       jugadores: '/api/v1/jugadores',
       rosters: '/api/v1/rosters',
       roles: '/api/v1/roles',
@@ -74,6 +78,9 @@ app.get('/', (req, res) => {
     }
   });
 });
+
+// Montar rutas de autenticación en /auth (para cumplir directamente con la especificación /auth/google/login y /auth/google/callback)
+app.use('/auth', authRoutes);
 
 // Montar endpoints en la versión 1 de la API
 app.use('/api/v1', apiRouter);

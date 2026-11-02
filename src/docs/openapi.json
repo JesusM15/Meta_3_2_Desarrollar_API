@@ -16,6 +16,7 @@
     }
   ],
   "tags": [
+    { "name": "Autenticacion", "description": "Google OAuth 2.0 y gestión de sesiones (Meta 4.1)" },
     { "name": "Jugadores", "description": "Gestión de perfiles de jugadores profesionales" },
     { "name": "Rosters", "description": "Gestión de equipos y alineaciones por temporada" },
     { "name": "Asignación", "description": "Asignación y gestión de roles dentro de cada roster" },
@@ -121,6 +122,46 @@
     }
   },
   "paths": {
+    "/auth/google/login": {
+      "get": {
+        "tags": ["Autenticacion"],
+        "summary": "Iniciar autenticación con Google OAuth 2.0 (Meta 4.1)",
+        "description": "Genera la URL oficial de Google OAuth2 y redirige al usuario o devuelve JSON si format=json.",
+        "parameters": [
+          { "name": "format", "in": "query", "schema": { "type": "string", "enum": ["json"] }, "description": "Si se envía 'json', responde con el objeto { authUrl, state } en vez de redirigir" }
+        ],
+        "responses": {
+          "200": { "description": "URL de autorización generada exitosamente" },
+          "302": { "description": "Redirección a pantalla de consentimiento de Google" },
+          "503": { "description": "Credenciales de Google OAuth no configuradas en .env" }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "tags": ["Autenticacion"],
+        "summary": "Callback de retorno de Google OAuth 2.0 (Meta 4.1)",
+        "description": "Recibe el código de autorización de Google, guarda o actualiza el usuario en la tabla de usuarios y emite cookies seguras JWT (HTTP-Only) y CSRF.",
+        "parameters": [
+          { "name": "code", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Código de autorización devuelto por Google" },
+          { "name": "state", "in": "query", "schema": { "type": "string" }, "description": "Token de estado CSRF para verificación" }
+        ],
+        "responses": {
+          "200": { "description": "Autenticación exitosa y cookies configuradas" },
+          "400": { "description": "Código de Google inválido o faltante" }
+        }
+      }
+    },
+    "/auth/usuarios": {
+      "get": {
+        "tags": ["Autenticacion"],
+        "summary": "Consultar tabla de usuarios registrados en el backend (Meta 4.1)",
+        "description": "Devuelve la lista completa de usuarios registrados en la base de datos (con fecha de registro, último acceso y rol).",
+        "responses": {
+          "200": { "description": "Lista de usuarios registrados obtenida correctamente" }
+        }
+      }
+    },
     "/jugadores": {
       "get": {
         "tags": ["Jugadores"],

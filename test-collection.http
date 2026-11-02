@@ -2,7 +2,24 @@
 @baseUrl = http://localhost:3000/api/v1
 
 ###############################################################################
-# 0. AUTENTICACIÓN Y SEGURIDAD JWT + COOKIES + CSRF (Meta 3.4)
+# 0. AUTENTICACIÓN GOOGLE OAUTH 2.0 Y TABLA DE USUARIOS (Meta 4.1)
+###############################################################################
+
+### 0.1 Iniciar sesión con Google (Genera URL de autorización OAuth2 en JSON)
+GET http://localhost:3000/auth/google/login?format=json
+
+### 0.2 Iniciar sesión con Google vía /api/v1 (Genera URL de autorización OAuth2 en JSON)
+GET {{baseUrl}}/auth/google/login?format=json
+
+### 0.3 Consultar tabla de usuarios registrados en el backend
+GET http://localhost:3000/auth/usuarios
+
+### 0.4 Consultar tabla de usuarios registrados vía /api/v1
+GET {{baseUrl}}/auth/usuarios
+
+
+###############################################################################
+# 0.5 AUTENTICACIÓN TRADICIONAL JWT + COOKIES + CSRF (Meta 3.4)
 ###############################################################################
 
 ### Iniciar sesión como Admin (Emite Cookie HTTP-Only jwt_token y Cookie csrf_token)

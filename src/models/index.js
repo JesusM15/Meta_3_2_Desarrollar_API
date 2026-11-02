@@ -2,6 +2,7 @@ import sequelize from '../config/database.js';
 import Jugador, { ROLES_VALIDOS, ESTADOS_VALIDOS } from './jugador.model.js';
 import Roster, { TIPOS_ROSTER_VALIDOS } from './roster.model.js';
 import RosterJugador, { ROLES_EN_ROSTER_VALIDOS } from './rosterJugador.model.js';
+import Usuario, { ROLES_USUARIO } from './usuario.model.js';
 
 // Relaciones Many-to-Many entre Roster y Jugador
 Roster.belongsToMany(Jugador, {
@@ -44,15 +45,18 @@ export {
   Jugador,
   Roster,
   RosterJugador,
+  Usuario,
   ROLES_VALIDOS,
   ESTADOS_VALIDOS,
   TIPOS_ROSTER_VALIDOS,
-  ROLES_EN_ROSTER_VALIDOS
+  ROLES_EN_ROSTER_VALIDOS,
+  ROLES_USUARIO
 };
 
 export default {
   sequelize,
   Jugador,
   Roster,
-  RosterJugador
+  RosterJugador,
+  Usuario
 };

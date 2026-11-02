@@ -175,6 +175,21 @@ async function runTests() {
       }
     });
 
+    await test('Google OAuth: GET /auth/google/login responde ruta válida', async () => {
+      const res = await request('GET', '/auth/google/login?format=json');
+      // Puede responder 200 con la URL generada o 503 si el usuario aún no configuró sus credenciales en .env
+      if (res.status !== 200 && res.status !== 503) {
+        throw new Error(`Esperaba 200 o 503, obtuve: ${res.status}`);
+      }
+    });
+
+    await test('Usuarios: GET /auth/usuarios lista tabla de usuarios registrados en el backend', async () => {
+      const res = await request('GET', '/auth/usuarios');
+      if (res.status !== 200 || !Array.isArray(res.data.usuarios)) {
+        throw new Error(`Esperaba 200 con array de usuarios, obtuve status ${res.status}`);
+      }
+    });
+
     await test('Seguridad: POST con JWT pero SIN header CSRF es bloqueado (403)', async () => {
       const res = await request(
         'POST',
