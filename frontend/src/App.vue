@@ -1,64 +1,109 @@
 <template>
   <div class="app-root">
-    <!-- Login Screen when not authenticated -->
-    <LoginView 
-      v-if="!isAuthenticated" 
-      ref="loginRef"
-      @login-submit="handleLogin" 
-    />
+    <!-- Vista Pública (no autenticado) -->
+    <template v-if="!isAuthenticated">
+      <!-- Si se quiere ver el portal público sin login -->
+      <template v-if="showPublicPortal">
+        <header class="app-header">
+          <div class="brand-section">
+            <div class="brand-logo-icon">⚡</div>
+            <div>
+              <h1 class="brand-title">eSports Roster Ops</h1>
+              <p class="brand-subtitle">Portal Público</p>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" @click="showPublicPortal = false" data-testid="btn-ir-login">
+            🔑 Iniciar Sesión
+          </button>
+        </header>
+        <main class="main-content">
+          <PublicView @go-login="showPublicPortal = false" />
+        </main>
+      </template>
 
-    <!-- Admin Portal Dashboard when authenticated -->
+      <!-- Pantalla de Login / Registro -->
+      <template v-else>
+        <LoginView
+          ref="loginRef"
+          @login-submit="handleLogin"
+          @register-submit="handleRegister"
+        />
+        <div style="text-align: center; margin-top: 1rem;">
+          <button
+            class="btn btn-secondary btn-sm"
+            @click="showPublicPortal = true"
+            data-testid="btn-ver-portal-publico"
+          >
+            🌐 Ver Portal Público (sin cuenta)
+          </button>
+        </div>
+      </template>
+    </template>
+
+    <!-- Portal Autenticado (Admin o Public) -->
     <template v-else>
-      <Navbar 
-        :current-tab="currentTab" 
+      <Navbar
+        :current-tab="currentTab"
         :user="currentUser"
         @change-tab="setTab"
         @logout="handleLogout"
       />
 
       <main class="main-content">
-        <!-- Tab 1: Dashboard -->
-        <DashboardView 
-          v-if="currentTab === 'dashboard'"
-          :stats="stats"
-          :health-info="healthInfo"
-          @navigate="setTab"
-        />
+        <!-- ── VISTAS ADMIN ──────────────────────────── -->
+        <template v-if="currentUser?.rol === 'Admin'">
+          <DashboardView
+            v-if="currentTab === 'dashboard'"
+            :stats="stats"
+            :health-info="healthInfo"
+            @navigate="setTab"
+          />
+          <JugadoresView
+            v-else-if="currentTab === 'jugadores'"
+            @notify="triggerToast"
+            @refresh-stats="loadStats"
+          />
+          <RostersView
+            v-else-if="currentTab === 'rosters'"
+            @notify="triggerToast"
+            @refresh-stats="loadStats"
+          />
+          <UsuariosView
+            v-else-if="currentTab === 'usuarios'"
+            @notify="triggerToast"
+          />
+          <SeguridadView
+            v-else-if="currentTab === 'seguridad'"
+            @notify="triggerToast"
+            @refresh-stats="loadStats"
+          />
+        </template>
 
-        <!-- Tab 2: Jugadores -->
-        <JugadoresView 
-          v-else-if="currentTab === 'jugadores'"
-          @notify="triggerToast"
-          @refresh-stats="loadStats"
-        />
-
-        <!-- Tab 3: Rosters & Alineación -->
-        <RostersView 
-          v-else-if="currentTab === 'rosters'"
-          @notify="triggerToast"
-          @refresh-stats="loadStats"
-        />
-
-        <!-- Tab 4: Seguridad & CSRF -->
-        <SeguridadView 
-          v-else-if="currentTab === 'seguridad'"
-          @notify="triggerToast"
-          @refresh-stats="loadStats"
-        />
+        <!-- ── VISTAS PUBLIC ─────────────────────────── -->
+        <template v-else-if="currentUser?.rol === 'Public'">
+          <PublicView
+            v-if="currentTab === 'public'"
+            @go-login="handleLogout"
+          />
+        </template>
       </main>
     </template>
 
-    <!-- Toast Notifications Container -->
+    <!-- Toast Notifications -->
     <div class="toast-container">
-      <div 
-        v-for="toast in toasts" 
-        :key="toast.id" 
+      <div
+        v-for="toast in toasts"
+        :key="toast.id"
         class="toast"
         :style="{
-          borderColor: toast.type === 'danger' ? 'var(--red-danger)' : (toast.type === 'success' ? 'var(--green-success)' : 'var(--cyan-neon)')
+          borderColor: toast.type === 'danger'
+            ? 'var(--red-danger)'
+            : toast.type === 'success'
+              ? 'var(--green-success)'
+              : 'var(--cyan-neon)'
         }"
       >
-        <span>{{ toast.type === 'danger' ? '⚠️' : (toast.type === 'success' ? '✅' : 'ℹ️') }}</span>
+        <span>{{ toast.type === 'danger' ? '⚠️' : toast.type === 'success' ? '✅' : 'ℹ️' }}</span>
         <span>{{ toast.message }}</span>
       </div>
     </div>
@@ -67,18 +112,21 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import { api, setCsrfToken } from './services/api.js';
+import { api } from './services/api.js';
 
 import Navbar from './components/Navbar.vue';
 import LoginView from './components/LoginView.vue';
+import PublicView from './components/PublicView.vue';
 import DashboardView from './components/DashboardView.vue';
 import JugadoresView from './components/JugadoresView.vue';
 import RostersView from './components/RostersView.vue';
+import UsuariosView from './components/UsuariosView.vue';
 import SeguridadView from './components/SeguridadView.vue';
 
 const isAuthenticated = ref(false);
 const currentUser = ref(null);
 const currentTab = ref('dashboard');
+const showPublicPortal = ref(false);
 const loginRef = ref(null);
 
 const stats = reactive({
@@ -87,7 +135,6 @@ const stats = reactive({
   titulares: 0,
   suplentes: 0
 });
-
 const healthInfo = ref(null);
 const toasts = ref([]);
 
@@ -103,19 +150,39 @@ const setTab = (tabName) => {
   currentTab.value = tabName;
 };
 
-const handleLogin = async ({ apiKey, email, password }) => {
+const handleLogin = async ({ email, password }) => {
   try {
-    const data = await api.auth.login(apiKey, email, password);
+    const data = await api.auth.login(email, password);
     isAuthenticated.value = true;
     currentUser.value = data.usuario;
+    // Iniciar en la tab correcta según rol
+    currentTab.value = data.usuario.rol === 'Admin' ? 'dashboard' : 'public';
     triggerToast({
-      message: `¡Bienvenido ${data.usuario.email}! Sesión iniciada con éxito.`,
+      message: `¡Bienvenido ${data.usuario.nombre}! (${data.usuario.rol})`,
       type: 'success'
     });
-    loadStats();
+    if (data.usuario.rol === 'Admin') loadStats();
   } catch (err) {
     if (loginRef.value?.setError) {
       loginRef.value.setError(err.message || 'Error al iniciar sesión');
+    }
+    triggerToast({ message: err.message, type: 'danger' });
+  }
+};
+
+const handleRegister = async ({ nombre, email, password }) => {
+  try {
+    const data = await api.auth.register(nombre, email, password);
+    isAuthenticated.value = true;
+    currentUser.value = data.usuario;
+    currentTab.value = 'public';
+    triggerToast({
+      message: `¡Cuenta creada! Bienvenido ${data.usuario.nombre} (Rol: ${data.usuario.rol})`,
+      type: 'success'
+    });
+  } catch (err) {
+    if (loginRef.value?.setError) {
+      loginRef.value.setError(err.message || 'Error al registrarse');
     }
     triggerToast({ message: err.message, type: 'danger' });
   }
@@ -125,11 +192,12 @@ const handleLogout = async () => {
   try {
     await api.auth.logout();
   } catch (err) {
-    console.error('Error during logout:', err);
+    console.error('Error durante logout:', err);
   } finally {
     isAuthenticated.value = false;
     currentUser.value = null;
     currentTab.value = 'dashboard';
+    showPublicPortal.value = false;
     triggerToast({ message: 'Has cerrado sesión correctamente.', type: 'info' });
   }
 };
@@ -140,10 +208,10 @@ const checkSession = async () => {
     if (data?.autenticado) {
       isAuthenticated.value = true;
       currentUser.value = data.usuario;
-      loadStats();
+      currentTab.value = data.usuario.rol === 'Admin' ? 'dashboard' : 'public';
+      if (data.usuario.rol === 'Admin') loadStats();
     }
   } catch {
-    // Si falla o no hay cookie válida, mostrar pantalla de login
     isAuthenticated.value = false;
     currentUser.value = null;
   }
@@ -164,7 +232,6 @@ const loadStats = async () => {
     if (rosters.status === 'fulfilled' && Array.isArray(rosters.value)) {
       stats.totalRosters = rosters.value.length;
 
-      // Calcular titulares y suplentes sumando las asignaciones de cada roster
       let tCount = 0;
       let sCount = 0;
       const detailPromises = rosters.value.map((r) => api.rosterJugadores.getJugadores(r.id));

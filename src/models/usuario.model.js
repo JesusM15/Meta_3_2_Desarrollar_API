@@ -1,7 +1,7 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../config/database.js';
 
-export const ROLES_USUARIO = ['Admin', 'Usuario'];
+export const ROLES_USUARIO = ['Admin', 'Public'];
 
 class Usuario extends Model {}
 
@@ -11,11 +11,6 @@ Usuario.init(
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true
-    },
-    google_id: {
-      type: DataTypes.STRING(100),
-      allowNull: true,
-      unique: true
     },
     nombre: {
       type: DataTypes.STRING(100),
@@ -33,14 +28,14 @@ Usuario.init(
         notEmpty: { msg: 'El email no puede estar vacío' }
       }
     },
-    avatar: {
+    password_hash: {
       type: DataTypes.STRING(255),
-      allowNull: true
+      allowNull: true  // null para admin inicial (usa .env)
     },
     rol: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      defaultValue: 'Admin',
+      defaultValue: 'Public',
       validate: {
         isIn: {
           args: [ROLES_USUARIO],

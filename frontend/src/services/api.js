@@ -1,10 +1,12 @@
 /**
- * Cliente API con soporte para Cookies HTTP-Only y Protección CSRF (Meta 3.4)
+ * Cliente API con soporte para Cookies HTTP-Only y Protección CSRF (Meta 4.2)
+ * Autenticación local: sin Google OAuth, sin API Key obligatoria
  */
 
 const API_BASE = '/api/v1';
+const AUTH_BASE = '/auth';
 
-// Estado reactivo/almacenado del token CSRF
+// Estado del token CSRF (sincronizado con localStorage)
 let csrfToken = localStorage.getItem('esports_csrf_token') || '';
 
 export const setCsrfToken = (token) => {
@@ -19,17 +21,18 @@ export const setCsrfToken = (token) => {
 export const getCsrfToken = () => csrfToken;
 
 /**
- * Función central de peticiones con credentials: 'include' y header CSRF automático
+ * Función central de peticiones:
+ * - credentials: 'include' para enviar cookie HTTP-Only jwt_token
+ * - x-csrf-token en cabecera para mutaciones
  */
-async function apiRequest(endpoint, options = {}) {
-  const url = `${API_BASE}${endpoint}`;
+async function apiRequest(endpoint, options = {}, baseUrl = API_BASE) {
+  const url = `${baseUrl}${endpoint}`;
   const method = (options.method || 'GET').toUpperCase();
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {})
   };
 
-  // En métodos de mutación (POST, PUT, DELETE, PATCH), inyectar cabecera CSRF requerida
   const esMutacion = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
   if (esMutacion && csrfToken && !headers['x-csrf-token']) {
     headers['x-csrf-token'] = csrfToken;
@@ -39,7 +42,6 @@ async function apiRequest(endpoint, options = {}) {
     ...options,
     method,
     headers,
-    // CRÍTICO: credentials: 'include' asegura que el navegador envíe la cookie HTTP-Only jwt_token
     credentials: 'include'
   };
 
@@ -50,10 +52,7 @@ async function apiRequest(endpoint, options = {}) {
     throw new Error(`Error de red al conectar con el servidor: ${err.message}`);
   }
 
-  // 204 No Content no contiene cuerpo JSON
-  if (response.status === 204) {
-    return null;
-  }
+  if (response.status === 204) return null;
 
   let data;
   try {
@@ -63,7 +62,7 @@ async function apiRequest(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    const errorMsg = data?.error || data?.mensaje || `Error HTTP ${response.status}: ${response.statusText}`;
+    const errorMsg = data?.message || data?.error || data?.mensaje || `Error HTTP ${response.status}: ${response.statusText}`;
     const error = new Error(errorMsg);
     error.status = response.status;
     error.data = data;
@@ -73,39 +72,55 @@ async function apiRequest(endpoint, options = {}) {
   return data;
 }
 
+function authRequest(endpoint, options = {}) {
+  return apiRequest(endpoint, options, AUTH_BASE);
+}
+
 export const api = {
-  // Autenticación (JWT + CSRF)
+  // ── Autenticación ────────────────────────────────────────────────────────
   auth: {
-    login: async (apiKey, email, password) => {
-      const data = await apiRequest('/auth/login', {
+    /**
+     * Login local con email + password
+     */
+    login: async (email, password) => {
+      const data = await authRequest('/login', {
         method: 'POST',
-        headers: {
-          'x-api-key': apiKey
-        },
         body: JSON.stringify({ email, password })
       });
-      if (data?.csrfToken) {
-        setCsrfToken(data.csrfToken);
-      }
+      if (data?.csrfToken) setCsrfToken(data.csrfToken);
       return data;
     },
+
+    /**
+     * Registro de nuevo usuario (rol Public)
+     */
+    register: async (nombre, email, password) => {
+      const data = await authRequest('/register', {
+        method: 'POST',
+        body: JSON.stringify({ nombre, email, password })
+      });
+      if (data?.csrfToken) setCsrfToken(data.csrfToken);
+      return data;
+    },
+
     logout: async () => {
       try {
-        await apiRequest('/auth/logout', { method: 'POST' });
+        await authRequest('/logout', { method: 'POST' });
       } finally {
         setCsrfToken('');
       }
     },
+
     verify: async () => {
-      const data = await apiRequest('/auth/verify', { method: 'GET' });
-      if (data?.csrfToken) {
-        setCsrfToken(data.csrfToken);
-      }
+      const data = await authRequest('/verify');
+      if (data?.csrfToken) setCsrfToken(data.csrfToken);
       return data;
-    }
+    },
+
+    listarUsuarios: () => authRequest('/usuarios')
   },
 
-  // Jugadores CRUD
+  // ── Jugadores CRUD ───────────────────────────────────────────────────────
   jugadores: {
     getAll: (params = {}) => {
       const searchParams = new URLSearchParams();
@@ -116,20 +131,12 @@ export const api = {
       return apiRequest(`/jugadores${query ? `?${query}` : ''}`);
     },
     getById: (id) => apiRequest(`/jugadores/${id}`),
-    create: (jugador) => apiRequest('/jugadores', {
-      method: 'POST',
-      body: JSON.stringify(jugador)
-    }),
-    update: (id, jugador) => apiRequest(`/jugadores/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(jugador)
-    }),
-    delete: (id) => apiRequest(`/jugadores/${id}`, {
-      method: 'DELETE'
-    })
+    create: (jugador) => apiRequest('/jugadores', { method: 'POST', body: JSON.stringify(jugador) }),
+    update: (id, jugador) => apiRequest(`/jugadores/${id}`, { method: 'PUT', body: JSON.stringify(jugador) }),
+    delete: (id) => apiRequest(`/jugadores/${id}`, { method: 'DELETE' })
   },
 
-  // Rosters CRUD
+  // ── Rosters CRUD ─────────────────────────────────────────────────────────
   rosters: {
     getAll: (params = {}) => {
       const searchParams = new URLSearchParams();
@@ -139,36 +146,29 @@ export const api = {
       return apiRequest(`/rosters${query ? `?${query}` : ''}`);
     },
     getById: (id) => apiRequest(`/rosters/${id}`),
-    create: (roster) => apiRequest('/rosters', {
-      method: 'POST',
-      body: JSON.stringify(roster)
-    }),
-    update: (id, roster) => apiRequest(`/rosters/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(roster)
-    }),
-    delete: (id) => apiRequest(`/rosters/${id}`, {
-      method: 'DELETE'
-    })
+    create: (roster) => apiRequest('/rosters', { method: 'POST', body: JSON.stringify(roster) }),
+    update: (id, roster) => apiRequest(`/rosters/${id}`, { method: 'PUT', body: JSON.stringify(roster) }),
+    delete: (id) => apiRequest(`/rosters/${id}`, { method: 'DELETE' })
   },
 
-  // Asignaciones de Roster (Tabla Intermedia)
+  // ── Roster-Jugadores ─────────────────────────────────────────────────────
   rosterJugadores: {
     getJugadores: (rosterId) => apiRequest(`/rosters/${rosterId}/jugadores`),
-    assign: (rosterId, { id_jugador, rol_en_roster }) => apiRequest(`/rosters/${rosterId}/jugadores`, {
-      method: 'POST',
-      body: JSON.stringify({ id_jugador, rol_en_roster })
-    }),
-    updateRol: (rosterId, jugadorId, rol_en_roster) => apiRequest(`/rosters/${rosterId}/jugadores/${jugadorId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ rol_en_roster })
-    }),
-    remove: (rosterId, jugadorId) => apiRequest(`/rosters/${rosterId}/jugadores/${jugadorId}`, {
-      method: 'DELETE'
-    })
+    assign: (rosterId, { id_jugador, rol_en_roster }) =>
+      apiRequest(`/rosters/${rosterId}/jugadores`, {
+        method: 'POST',
+        body: JSON.stringify({ id_jugador, rol_en_roster })
+      }),
+    updateRol: (rosterId, jugadorId, rol_en_roster) =>
+      apiRequest(`/rosters/${rosterId}/jugadores/${jugadorId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ rol_en_roster })
+      }),
+    remove: (rosterId, jugadorId) =>
+      apiRequest(`/rosters/${rosterId}/jugadores/${jugadorId}`, { method: 'DELETE' })
   },
 
-  // Endpoints Auxiliares
+  // ── Endpoints Auxiliares ─────────────────────────────────────────────────
   auxiliares: {
     getRoles: () => apiRequest('/roles'),
     getEstados: () => apiRequest('/estados'),
@@ -176,13 +176,11 @@ export const api = {
     getHealth: () => apiRequest('/health')
   },
 
-  // Prueba de Seguridad CSRF intencionalmente sin token para demostración
+  // ── Prueba de Seguridad CSRF (sin token, para demo) ──────────────────────
   probarMutacionSinCsrf: async () => {
     return apiRequest('/jugadores', {
       method: 'POST',
-      headers: {
-        'x-csrf-token': '' // se omite el token
-      },
+      headers: { 'x-csrf-token': '' },
       body: JSON.stringify({ nickname: 'TestCsrf', rol: 'Mid' })
     });
   }

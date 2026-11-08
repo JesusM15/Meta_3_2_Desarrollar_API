@@ -3,11 +3,32 @@
     <div class="login-card">
       <div class="login-logo">⚡</div>
       <h2 class="login-title">eSports Roster Ops</h2>
-      <p class="login-desc">Portal de Administración y Gestión de Equipos de League of Legends</p>
+      <p class="login-desc">Portal de Gestión de Equipos de League of Legends</p>
 
-      <div class="quick-demo-box">
+      <!-- Tabs: Login / Registro -->
+      <div class="login-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+        <button
+          class="btn btn-sm"
+          :class="mode === 'login' ? 'btn-primary' : 'btn-secondary'"
+          @click="mode = 'login'; errorMessage = ''"
+          style="flex: 1;"
+        >
+          🔑 Iniciar Sesión
+        </button>
+        <button
+          class="btn btn-sm"
+          :class="mode === 'register' ? 'btn-primary' : 'btn-secondary'"
+          @click="mode = 'register'; errorMessage = ''"
+          style="flex: 1;"
+        >
+          📝 Registrarse
+        </button>
+      </div>
+
+      <!-- Demo Credentials Box (solo en modo login) -->
+      <div v-if="mode === 'login'" class="quick-demo-box">
         <div>
-          <strong>Credenciales Demo:</strong>
+          <strong>Credenciales Admin:</strong>
           <div>admin@esports.com / admin123</div>
         </div>
         <button type="button" class="btn btn-secondary btn-sm" @click="loadDemoCredentials">
@@ -19,37 +40,29 @@
         <span>⚠️</span> {{ errorMessage }}
       </div>
 
-      <form @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label class="form-label">API Key del Sistema</label>
-          <input 
-            v-model="form.apiKey" 
-            type="text" 
-            class="input-control" 
-            placeholder="esports_api_key_admin_2026" 
-            required 
-          />
-        </div>
-
+      <!-- Formulario de Login -->
+      <form v-if="mode === 'login'" @submit.prevent="handleLogin">
         <div class="form-group">
           <label class="form-label">Correo Electrónico</label>
-          <input 
-            v-model="form.email" 
-            type="email" 
-            class="input-control" 
-            placeholder="admin@esports.com" 
-            required 
+          <input
+            v-model="loginForm.email"
+            type="email"
+            class="input-control"
+            placeholder="admin@esports.com"
+            autocomplete="email"
+            required
           />
         </div>
 
         <div class="form-group">
           <label class="form-label">Contraseña</label>
-          <input 
-            v-model="form.password" 
-            type="password" 
-            class="input-control" 
-            placeholder="••••••••" 
-            required 
+          <input
+            v-model="loginForm.password"
+            type="password"
+            class="input-control"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
           />
         </div>
 
@@ -59,8 +72,51 @@
         </button>
       </form>
 
+      <!-- Formulario de Registro -->
+      <form v-else @submit.prevent="handleRegister">
+        <div class="form-group">
+          <label class="form-label">Nombre</label>
+          <input
+            v-model="registerForm.nombre"
+            type="text"
+            class="input-control"
+            placeholder="Tu nombre completo"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Correo Electrónico</label>
+          <input
+            v-model="registerForm.email"
+            type="email"
+            class="input-control"
+            placeholder="tu@email.com"
+            autocomplete="email"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Contraseña (mín. 6 caracteres)</label>
+          <input
+            v-model="registerForm.password"
+            type="password"
+            class="input-control"
+            placeholder="••••••••"
+            autocomplete="new-password"
+            required
+          />
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;" :disabled="loading">
+          <span v-if="loading">⏳ Registrando...</span>
+          <span v-else>📝 Crear Cuenta (Rol: Público)</span>
+        </button>
+      </form>
+
       <div style="margin-top: 1.5rem; font-size: 0.78rem; color: var(--text-dim); text-align: center; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
-        🔒 Conexión cifrada y sesión protegida contra ataques de falsificación y robo de credenciales.
+        🔒 Sesión protegida con JWT HTTP-Only + Token CSRF
       </div>
     </div>
   </div>
@@ -69,32 +125,52 @@
 <script setup>
 import { reactive, ref } from 'vue';
 
-const emit = defineEmits(['login-success']);
+const emit = defineEmits(['login-submit', 'register-submit']);
 
-const form = reactive({
-  apiKey: 'esports_api_key_admin_2026',
-  email: 'admin@esports.com',
-  password: 'admin123'
-});
-
+const mode = ref('login');
 const loading = ref(false);
 const errorMessage = ref('');
 
+const loginForm = reactive({
+  email: '',
+  password: ''
+});
+
+const registerForm = reactive({
+  nombre: '',
+  email: '',
+  password: ''
+});
+
 const loadDemoCredentials = () => {
-  form.apiKey = 'esports_api_key_admin_2026';
-  form.email = 'admin@esports.com';
-  form.password = 'admin123';
+  loginForm.email = 'admin@esports.com';
+  loginForm.password = 'admin123';
   errorMessage.value = '';
 };
 
-const handleSubmit = async () => {
+const handleLogin = async () => {
   loading.value = true;
   errorMessage.value = '';
   try {
     emit('login-submit', {
-      apiKey: form.apiKey.trim(),
-      email: form.email.trim(),
-      password: form.password
+      email: loginForm.email.trim(),
+      password: loginForm.password
+    });
+  } catch (err) {
+    errorMessage.value = err.message;
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleRegister = async () => {
+  loading.value = true;
+  errorMessage.value = '';
+  try {
+    emit('register-submit', {
+      nombre: registerForm.nombre.trim(),
+      email: registerForm.email.trim(),
+      password: registerForm.password
     });
   } catch (err) {
     errorMessage.value = err.message;

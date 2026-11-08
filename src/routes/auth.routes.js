@@ -1,25 +1,63 @@
 import { Router } from 'express';
+
 import authController from '../controllers/auth.controller.js';
-import { validarApiKey, verificarTokenYCsrf } from '../middlewares/auth.middleware.js';
+
+import { verificarTokenYCsrf, verificarToken } from '../middlewares/auth.middleware.js';
+
+
 
 const router = Router();
 
-// Iniciar flujo de Google OAuth 2.0 (Meta 4.1)
-router.get('/google/login', authController.googleLogin);
 
-// Callback de Google OAuth 2.0 (Meta 4.1)
-router.get('/google/callback', authController.googleCallback);
 
-// Iniciar sesión con API Key en header + credenciales (Configura JWT HttpOnly + CSRF Cookie)
-router.post('/login', validarApiKey, authController.login);
+// Iniciar sesión local con email + password
+
+// POST /auth/login
+
+router.post('/login', authController.login);
+
+
+
+// Registrar nuevo usuario (rol Public)
+
+// POST /auth/register
+
+router.post('/register', authController.register);
+
+
 
 // Cerrar sesión y eliminar cookies
-router.post('/logout', authController.logout);
 
-// Verificar sesión activa
-router.get('/verify', verificarTokenYCsrf, authController.verify);
+// POST /auth/logout
 
-// Obtener tabla de usuarios registrados en el backend
-router.get('/usuarios', authController.listarUsuarios);
+router.post('/logout', verificarToken, (req, res, next) => {
+
+  if (!req.headers['x-csrf-token'] || req.headers['x-csrf-token'] !== req.usuario.csrfToken) {
+
+    return res.status(403).json({ error: 'Protección CSRF: token inválido' });
+
+  }
+
+  next();
+
+}, authController.logout);
+
+
+
+// Verificar sesión activa (requiere JWT válido de cualquier rol)
+
+// GET /auth/verify
+
+router.get('/verify', verificarToken, authController.verify);
+
+
+
+// Listar usuarios registrados (solo Admin)
+
+// GET /auth/usuarios — no requiere CSRF (es GET), pero sí JWT con rol Admin
+
+router.get('/usuarios', verificarToken, authController.listarUsuarios);
+
+
 
 export default router;

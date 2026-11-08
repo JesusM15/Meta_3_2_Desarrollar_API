@@ -8,7 +8,8 @@ const migrationFiles = [
   './migrations/20261012000001-create-jugadores.cjs',
   './migrations/20261012000002-create-rosters.cjs',
   './migrations/20261012000003-create-roster-jugador.cjs',
-  './migrations/20261102000001-create-usuarios.cjs'
+  './migrations/20261102000001-create-usuarios.cjs',
+  './migrations/20261107000001-update-usuarios-meta42.cjs'
 ];
 
 export async function runMigrations() {
@@ -28,7 +29,7 @@ export async function runMigrations() {
         if (
           migError.parent?.code === 'ER_TABLE_EXISTS_ERROR' ||
           migError.parent?.code === 'ER_DUP_KEYNAME' ||
-          migError.name === 'SequelizeDatabaseError'
+          (migError.parent?.code === 'SQLITE_ERROR' && /already exists/i.test(migError.parent?.message || ''))
         ) {
           console.warn(`  ⚠️ Aviso en ${file}: ${migError.parent?.message || migError.message} (omitido)`);
         } else {
@@ -40,7 +41,7 @@ export async function runMigrations() {
     console.log('✓ Todas las migraciones se ejecutaron con éxito.');
   } catch (error) {
     console.error('Error durante la ejecución de migraciones:', error);
-    process.exitCode = 1;
+    throw error;
   }
 }
 
